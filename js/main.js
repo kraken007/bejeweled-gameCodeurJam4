@@ -64,6 +64,11 @@ var play = {
                 this.tabGame[ligne][colonne] = gemme;
             }
         }
+        console.log(this.tabGame);
+        // console.log(this.nbJetonAdj(3, 0));
+        // console.log(this.nbJetonAdj(3, 3));
+        // console.log(this.nbJetonAdj(3, 7));
+        // this.test();
     },
     update: function () {
         //gestion de l'editeur
@@ -79,17 +84,19 @@ var play = {
 
             this.nextClick = game.time.now + this.latenceClick;
 
-            clickCaseX = caseX;
-            clickCaseY = caseY;
-            
+            var clickCaseX = caseX;
+            var clickCaseY = caseY;
+
             var nbClick = Object.keys(this.clickedCase).length;
             if (nbClick > 0
                 && (this.clickedCase["first"].x != clickCaseX || this.clickedCase["first"].y != clickCaseY) //pas la mm case
                 && this.isAdjacent(clickCaseX, clickCaseY) //et une case adjacente 
-                ) {
-                this.clickedCase["second"] = { x: clickCaseX, y: clickCaseY };
+            ) {
+                this.clickedCase["second"] = {x: clickCaseX, y: clickCaseY};
                 this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 1);
                 //intervertir les jetons
+                //sauvegardes des coordonnées des sprites
+                //faire l'echange et bouger les sprites
                 var tmpJetonFirst = this.tabGame[this.clickedCase["first"].y][this.clickedCase["first"].x];
                 var oldFirstX = tmpJetonFirst.x;
                 var oldFirstY = tmpJetonFirst.y;
@@ -101,7 +108,7 @@ var play = {
                 this.tabGame[this.clickedCase["first"].y][this.clickedCase["first"].x] = tmpJetonSecond;
                 this.tabGame[this.clickedCase["first"].y][this.clickedCase["first"].x].x = oldFirstX;
                 this.tabGame[this.clickedCase["first"].y][this.clickedCase["first"].x].y = oldFirstY;
-                
+
                 this.tabGame[this.clickedCase["second"].y][this.clickedCase["second"].x] = tmpJetonFirst;
                 this.tabGame[this.clickedCase["second"].y][this.clickedCase["second"].x].x = oldSecondX;
                 this.tabGame[this.clickedCase["second"].y][this.clickedCase["second"].x].y = oldSecondY;
@@ -112,9 +119,13 @@ var play = {
 
                 //validé le coup first et second
                 //si ok supprimé les bonbons
+                this.validateHit(this.clickedCase["second"].x, this.clickedCase["second"].y);
+                this.validateHit(this.clickedCase["first"].x, this.clickedCase["first"].y);
+
                 //descendre les bonbons dans les cases vides
                 //remplir les cases vides par le haut
                 //sinon roll back
+
                 //reset clickedCase
                 delete this.clickedCase['second'];
                 delete this.clickedCase['first'];
@@ -122,13 +133,13 @@ var play = {
             } else {
 
                 if (nbClick == 0) {
-                    this.clickedCase["first"] = { x: clickCaseX, y: clickCaseY };
+                    this.clickedCase["first"] = {x: clickCaseX, y: clickCaseY};
                 } else if (nbClick == 1) {
                     this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 1);
-                    this.clickedCase["first"] = { x: clickCaseX, y: clickCaseY };
+                    this.clickedCase["first"] = {x: clickCaseX, y: clickCaseY};
                 } else if (nbClick > 1) {
                     this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 1);
-                    this.clickedCase["first"] = { x: clickCaseX, y: clickCaseY };
+                    this.clickedCase["first"] = {x: clickCaseX, y: clickCaseY};
                     delete this.clickedCase['second'];
                 }
                 this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 0.5);
@@ -156,8 +167,8 @@ var play = {
     random: function (pmin, pmax) {
         var min = Math.ceil(pmin);
         var max = Math.floor(pmax);
-        var index = Math.floor(Math.random() * (max - min + 1)) + min;
-        return index;
+
+        return Math.floor(Math.random() * (max - min + 1)) + min;
     },
     isAdjacent: function (px, py) {
         //vérifie que la case cliqué est une case adjacente a la première
@@ -183,8 +194,101 @@ var play = {
     changeColor: function (px, py, pAlpha) {
         var forme = this.tabGame[py][px];
         forme.alpha = pAlpha;
+    },
+    validateHit: function (px, py) {
+        //vérifié le nb de jeton de la mm couleur sur la ligne horizontale et verticale
+        var result = this.nbJetonAdj(px, py);
+        if (result != null) {
+            if ((result.cptXM + result.cptXP + 1) >= 3) {
+                this.killRow(px, py, result, 'x');
+            }
+            if ((result.cptYM + result.cptYP + 1) >= 3) {
+                this.killRow(px, py, result, 'y');
+            }
+        }
+    },
+    nbJetonAdj: function (px, py) {
+        var jeton = this.tabGame[py][px];
+
+        if (jeton != null) {
+            var result = {};
+
+            var i = px - 1;
+            var cptXM = 0;
+            for (i; i >= 0; i--) {
+                if (this.tabGame[py][i] != null && jeton.key === this.tabGame[py][i].key) {
+                    cptXM++;
+                } else {
+                    break;
+                }
+            }
+            result.cptXM = cptXM;
+
+            var j = px + 1;
+            var cptXP = 0;
+            for (j; j < this.nbColonnes; j++) {
+                if (this.tabGame[py][j] != null && jeton.key === this.tabGame[py][j].key) {
+                    cptXP++;
+                } else {
+                    break;
+                }
+            }
+            result.cptXP = cptXP;
+
+            var k = py - 1;
+            var cptYM = 0;
+            for (k; k >= 0; k--) {
+                if (this.tabGame[k][px] != null && jeton.key === this.tabGame[k][px].key) {
+                    cptYM++;
+                } else {
+                    break;
+                }
+            }
+            result.cptYM = cptYM;
+
+            var l = py + 1;
+            var cptYP = 0;
+            for (l; l < this.nbLignes; l++) {
+                if (this.tabGame[l][px] != null && jeton.key === this.tabGame[l][px].key) {
+                    cptYP++;
+                } else {
+                    break;
+                }
+            }
+            result.cptYP = cptYP;
+
+            return result;
+        }
+        return null;
+    },
+    killRow: function (px, py, pResult, pAxe) {
+        //supprime les jetons d'une ligne
+        if (pAxe == "x") {
+            var xStart = px - pResult.cptXM;
+            var xNbKill = pResult.cptXM + pResult.cptXP + 1;
+            for (var i = 0; i < xNbKill; i++) {
+                if (this.tabGame[py][xStart + i] != null) {
+                    this.tabGame[py][xStart + i].destroy();
+                    this.tabGame[py][xStart + i] = null;
+                }
+            }
+        }
+        if (pAxe == "y") {
+            var yStart = py - pResult.cptYM;
+            var yNbKill = pResult.cptYM + pResult.cptYP + 1;
+            for (var j = 0; j < yNbKill; j++) {
+                if (this.tabGame[yStart + j][px] != null) {
+                    this.tabGame[yStart + j][px].destroy();
+                    this.tabGame[yStart + j][px] = null;
+                }
+            }
+        }
+
+    },
+    test: function () {
+
     }
-}
+};
 
 game.state.add('play', play);
 
