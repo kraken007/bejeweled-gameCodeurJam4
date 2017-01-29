@@ -15,6 +15,7 @@ var play = {
         this.latenceClick = 200;
         this.nextClick = 0;
         this.clickedCase = [];
+        this.traitementEnCours = false;
     },
     create: function () {
 
@@ -80,8 +81,10 @@ var play = {
             && caseY >= 0
             && caseX >= 0
             && caseX < this.nbColonnes
-            && game.time.now > this.nextClick) {
-
+            && game.time.now > this.nextClick
+            && this.traitementEnCours === false
+        ) {
+            this.traitementEnCours = true;
             this.nextClick = game.time.now + this.latenceClick;
 
             var clickCaseX = caseX;
@@ -144,6 +147,7 @@ var play = {
                 }
                 this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 0.5);
             }
+            this.traitementEnCours = false;
         }
     },
     render: function () {
@@ -198,13 +202,47 @@ var play = {
     validateHit: function (px, py) {
         //vérifié le nb de jeton de la mm couleur sur la ligne horizontale et verticale
         var result = this.nbJetonAdj(px, py);
+        var killedCase = [];
         if (result != null) {
             if ((result.cptXM + result.cptXP + 1) >= 3) {
-                this.killRow(px, py, result, 'x');
+                killedCase.push(this.killRow(px, py, result, 'x'));
             }
             if ((result.cptYM + result.cptYP + 1) >= 3) {
-                this.killRow(px, py, result, 'y');
+                killedCase.push(this.killRow(px, py, result, 'y'));
             }
+            console.log(killedCase);
+            //faire décendre les jetons sur les cases vide
+            for (var i = 0; i < killedCase.length; i++) {
+                for (var j = 0; j < killedCase[i].length; j++) {
+                    var startCaseX = killedCase[i][j].x;
+                    var startCaseY = killedCase[i][j].y;
+                    var cpt = 0;
+                    while ((startCaseY - cpt) >= 0) {
+                        //echange 2 case en remontant
+                        var tmpCase = this.tabGame[startCaseY - cpt][startCaseX];
+                        if ((startCaseY - cpt - 1) >= 0) {
+                            this.tabGame[startCaseY - cpt][startCaseX] = this.tabGame[startCaseY - cpt - 1][startCaseX];
+                            if (this.tabGame[startCaseY - cpt][startCaseX] != null) {
+                                var coordSprite = this.calculCoordSpriteInGrid(startCaseX, startCaseY - cpt);
+                                this.tabGame[startCaseY - cpt][startCaseX].x = coordSprite.x;
+                                this.tabGame[startCaseY - cpt][startCaseX].y = coordSprite.y;
+                                this.tabGame[startCaseY - cpt][startCaseX].update();
+                            }
+
+                            this.tabGame[startCaseY - cpt - 1][startCaseX] = tmpCase;
+                            if (this.tabGame[startCaseY - cpt - 1][startCaseX] != null) {
+                                var coordSprite2 = this.calculCoordSpriteInGrid(startCaseX, startCaseY - cpt - 1);
+                                this.tabGame[startCaseY - cpt - 1][startCaseX].x = coordSprite2.x;
+                                this.tabGame[startCaseY - cpt - 1][startCaseX].y = coordSprite2.y;
+                                this.tabGame[startCaseY - cpt - 1][startCaseX].update();
+                            }
+                        }
+                        cpt++;
+                    }
+                }
+            }
+            //remplir les cases vide depuis le haut
+            this.remplirCaseVide();
         }
     },
     nbJetonAdj: function (px, py) {
@@ -263,6 +301,7 @@ var play = {
     },
     killRow: function (px, py, pResult, pAxe) {
         //supprime les jetons d'une ligne
+        var killedCase = [];
         if (pAxe == "x") {
             var xStart = px - pResult.cptXM;
             var xNbKill = pResult.cptXM + pResult.cptXP + 1;
@@ -270,6 +309,7 @@ var play = {
                 if (this.tabGame[py][xStart + i] != null) {
                     this.tabGame[py][xStart + i].destroy();
                     this.tabGame[py][xStart + i] = null;
+                    killedCase.push({x: xStart + i, y: py});
                 }
             }
         }
@@ -280,10 +320,52 @@ var play = {
                 if (this.tabGame[yStart + j][px] != null) {
                     this.tabGame[yStart + j][px].destroy();
                     this.tabGame[yStart + j][px] = null;
+                    killedCase.push({x: px, y: yStart + j});
                 }
             }
         }
-
+        return killedCase;
+    },
+    calculCoordSpriteInGrid: function (px, py) {
+        var coordSprite = {};
+        coordSprite.x = this.startX + (this.taillePico * px);
+        coordSprite.y = this.startY + (this.taillePico * py);
+        return coordSprite;
+    },
+    remplirCaseVide: function () {
+        for (var ligne = this.nbLignes - 1; ligne >= 0; ligne--) {
+            for (var colonne = this.nbColonnes - 1; colonne >= 0; colonne--) {
+                if (this.tabGame[ligne][colonne] == null) {
+                    this.tabGame[ligne][colonne] = this.randomJeton(colonne, ligne);
+                }
+            }
+        }
+    },
+    randomJeton: function (caseX, caseY) {
+        var coordSprite = this.calculCoordSpriteInGrid(caseX, caseY);
+        var x = coordSprite.x;
+        var y = coordSprite.y;
+        var gemme = {};
+        switch (this.random(0, 4)) {
+            case 0:
+                gemme = game.add.sprite(x, y, 'orange');
+                break;
+            case 1:
+                gemme = game.add.sprite(x, y, 'bleu');
+                break;
+            case 2:
+                gemme = game.add.sprite(x, y, 'violet');
+                break;
+            case 3:
+                gemme = game.add.sprite(x, y, 'vert');
+                break;
+            case 4:
+                gemme = game.add.sprite(x, y, 'rouge');
+                break;
+            default:
+                console.log('allo houston on a un pb ! pas de pico pour ce chiffre');
+        }
+        return gemme;
     },
     test: function () {
 
