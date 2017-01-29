@@ -16,6 +16,8 @@ var play = {
         this.nextClick = 0;
         this.clickedCase = [];
         this.traitementEnCours = false;
+        this.nbKilledToken = 0;
+        this.nbOfhit = 0;
     },
     create: function () {
 
@@ -40,36 +42,25 @@ var play = {
         //affichage des picos dans la grille
         for (var ligne = 0; ligne < this.nbLignes; ligne++) {
             for (var colonne = 0; colonne < this.nbColonnes; colonne++) {
-                //cacul de x y pour placé l'image
-                var x = this.startX + (this.taillePico * colonne);
-                var y = this.startY + (this.taillePico * ligne);
-                switch (this.tabGame[ligne][colonne]) {
-                    case 0:
-                        var gemme = game.add.sprite(x, y, 'orange');
-                        break;
-                    case 1:
-                        var gemme = game.add.sprite(x, y, 'bleu');
-                        break;
-                    case 2:
-                        var gemme = game.add.sprite(x, y, 'violet');
-                        break;
-                    case 3:
-                        var gemme = game.add.sprite(x, y, 'vert');
-                        break;
-                    case 4:
-                        var gemme = game.add.sprite(x, y, 'rouge');
-                        break;
-                    default:
-                        console.log('allo houston on a un pb ! pas de pico pour ce chiffre');
-                }
-                this.tabGame[ligne][colonne] = gemme;
+                this.tabGame[ligne][colonne] = this.randomJeton(colonne, ligne);
             }
         }
-        console.log(this.tabGame);
-        // console.log(this.nbJetonAdj(3, 0));
-        // console.log(this.nbJetonAdj(3, 3));
-        // console.log(this.nbJetonAdj(3, 7));
-        // this.test();
+
+        //affichage nbHit et nbKill
+        this.textNbHitString = 'Nombre de coups joués : ';
+        this.textNbHit = game.add.text(10, 10, this.textNbHitString + this.nbOfhit, {
+            font: "32px Arial"
+            , fill: "#ffffff"
+            , align: "center"
+        });
+
+        this.textNbKilledTokenString = 'Nombre jetons supprimés : ';
+        this.textNbKill = game.add.text(10, 55, this.textNbKilledTokenString + this.nbKilledToken, {
+            font: "32px Arial"
+            , fill: "#ffffff"
+            , align: "center"
+        });
+
     },
     update: function () {
         //gestion de l'editeur
@@ -122,12 +113,15 @@ var play = {
 
                 //validé le coup first et second
                 //si ok supprimé les bonbons
-                this.validateHit(this.clickedCase["second"].x, this.clickedCase["second"].y);
-                this.validateHit(this.clickedCase["first"].x, this.clickedCase["first"].y);
-
-                //descendre les bonbons dans les cases vides
-                //remplir les cases vides par le haut
-                //sinon roll back
+                var validSecond = this.validateHit(this.clickedCase["second"].x, this.clickedCase["second"].y);
+                var validFirst =this.validateHit(this.clickedCase["first"].x, this.clickedCase["first"].y);
+                if(validFirst || validSecond){
+                    this.nbOfhit++;
+                }
+                if(validSecond == false && validSecond == false){
+                    //A faire
+                    //sinon roll back
+                }
 
                 //reset clickedCase
                 delete this.clickedCase['second'];
@@ -147,6 +141,10 @@ var play = {
                 }
                 this.changeColor(this.clickedCase["first"].x, this.clickedCase["first"].y, 0.5);
             }
+            //maj score
+            this.textNbHit.setText(this.textNbHitString + this.nbOfhit);
+            this.textNbKill.setText(this.textNbKilledTokenString + this.nbKilledToken);
+
             this.traitementEnCours = false;
         }
     },
@@ -210,7 +208,6 @@ var play = {
             if ((result.cptYM + result.cptYP + 1) >= 3) {
                 killedCase.push(this.killRow(px, py, result, 'y'));
             }
-            console.log(killedCase);
             //faire décendre les jetons sur les cases vide
             for (var i = 0; i < killedCase.length; i++) {
                 for (var j = 0; j < killedCase[i].length; j++) {
@@ -243,7 +240,9 @@ var play = {
             }
             //remplir les cases vide depuis le haut
             this.remplirCaseVide();
+            return true;
         }
+        return false
     },
     nbJetonAdj: function (px, py) {
         var jeton = this.tabGame[py][px];
@@ -310,6 +309,7 @@ var play = {
                     this.tabGame[py][xStart + i].destroy();
                     this.tabGame[py][xStart + i] = null;
                     killedCase.push({x: xStart + i, y: py});
+                    this.nbKilledToken++;
                 }
             }
         }
@@ -321,6 +321,7 @@ var play = {
                     this.tabGame[yStart + j][px].destroy();
                     this.tabGame[yStart + j][px] = null;
                     killedCase.push({x: px, y: yStart + j});
+                    this.nbKilledToken++;
                 }
             }
         }
